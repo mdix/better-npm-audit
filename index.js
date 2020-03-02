@@ -1,13 +1,8 @@
 #!/usr/bin/env node
-
-/**
- * Module dependencies.
- */
-
 const program = require('commander');
 const { exec } = require('child_process');
 
-const AUDIT_COMMAND = 'npm audit';
+const AUDIT_BASE_COMMAND = 'npm audit';
 const SEPARATOR = ',';
 const SPLIT_REGEX = /(https:\/\/(nodesecurity.io|npmjs.com)\/advisories\/)/;
 const DIGIT_REGEX = /^\d+$/;
@@ -23,20 +18,27 @@ function unique(value, index, self) {
 let userExceptionIds = [];
 
 program
-  .version('0.1.0')
+  .version('0.1.1');
 
 program
   .command('audit')
   .description('execute npm audit')
-  .option("-i, --ignore <ids>", "Vulnerabilities ID(s) to ignore")
+  .option("-i, --ignore <ids>", "Vulnerability IDs to ignore.")
+  .option("-r, --registry <npm registry url>", "The registry to be used for the audit.")
   .action(function(options) {
+    let audit_command = AUDIT_BASE_COMMAND;
+
     if (options && options.ignore) {
       userExceptionIds = options.ignore.split(SEPARATOR);
       console.info('Exception vulnerabilities ID(s): ', userExceptionIds);
     }
 
+    if (options && options.registry) {
+      audit_command = AUDIT_BASE_COMMAND + ' --registry ' + options.registry;
+    }
+
     // Execute `npm audit` command to get the security report
-    const audit = exec(AUDIT_COMMAND);
+    const audit = exec(audit_command);
 
     // stdout
     audit.stdout.on('data', data => {
@@ -52,12 +54,12 @@ program
       const vulnerabilities = uniqueIds.filter(id => (userExceptionIds.indexOf(id) === -1));
       // Throw error if found more exceptions
       if (vulnerabilities.length > 0) {
-        const message = `${vulnerabilities.length} vulnerabilities found. Node security advisories: ${vulnerabilities}`
+        const message = `${vulnerabilities.length} vulnerabilities found. Node security advisories: ${vulnerabilities}`;
         throw new Error(message);
       }
       else {
         console.info(data);
-        console.info('🤝  All good!');
+        console.info('All good!');
       }
     });
 
